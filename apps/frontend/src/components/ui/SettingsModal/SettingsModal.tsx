@@ -202,17 +202,8 @@ function SettingsModal({
                   1. Kết nối cân với máy tính qua Bluetooth<br/>
                   2. Chọn Baud Rate phù hợp (thường là 9600)<br/>
                   3. Nhấn nút "Kết nối"<br/>
-                  4. Chọn cổng COM của cân trong hộp thoại<br/>
+                  4. Chọn cổng COM của cân trong hộp thoại (thường là Dev B)<br/>
                   5. Trọng lượng sẽ tự động cập nhật khi cân ổn định
-                </p>
-              </div>
-
-              {/* Yêu cầu trình duyệt */}
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-xs text-amber-800">
-                  <strong>⚠️ Lưu ý:</strong><br/>
-                  Tính năng này yêu cầu trình duyệt Chrome hoặc Edge (phiên bản mới). 
-                  Web Serial API không được hỗ trợ trên Firefox hoặc Safari.
                 </p>
               </div>
             </div>

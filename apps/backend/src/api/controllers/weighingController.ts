@@ -44,7 +44,7 @@ export const completeWeighing = async (req: Request, res: Response) => {
     }
 
     // KIỂM TRA: Tổng khối lượng có vượt Qty của Work không?
-    if (loai === 'nhap') {
+    /*if (loai === 'nhap') {
       // Chạy 2 query song song để lấy tổng mục tiêu và tổng đã cân
       
       // Query: Lấy tổng Qty (mục tiêu) từ Outsole_VML_Work
@@ -71,7 +71,7 @@ export const completeWeighing = async (req: Request, res: Response) => {
           message: `Lỗi: Vượt quá tổng khối lượng cho phép! (Tổng đã cân: ${totalWeighed}kg / Lần này: ${khoiLuongCan}kg / Cho phép: ${targetQty}kg)` 
         });
       }
-    }
+    }*/
 
     // KIỂM TRA: Tổng khối lượng cân xuất có vượt quá khối lượng đã nhập
     if (loai === 'xuat') {

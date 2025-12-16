@@ -94,6 +94,10 @@ function Header() {
                         <img src={controlPanelIcon} alt="Dashboard" className="h-5 w-5 filters invert" />
                         Dashboard
                       </Link>
+                      <Link to="/unweighed" className={dropdownLinkClasses} onClick={toggleMenu} >
+                          <img src={unweigh} alt="Quản Lý Lệnh Sản Xuất" className="h-5 w-5 brightness-0" />
+                          Quản Lý Lệnh Sản Xuất
+                      </Link>
                     </>
                   )}
                   {/* Đường kẻ phân cách */}
