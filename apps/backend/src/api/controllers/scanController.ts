@@ -29,7 +29,7 @@ export const getScanData = async (req: Request, res: Response) => {
     // Query Work (Lấy thông tin chung + TỔNG QTY MỤC TIÊU)
     const workPromise = pool.request()
       .input('ovNOParam', sql.VarChar(15), ovNO) // Giả sử OVNO là NVarChar
-      .query('SELECT FormulaF1, Machine_NO, Memo, Qty AS TotalTargetQty FROM Outsole_VML_Work WHERE OVNO = @ovNOParam');
+      .query('SELECT FormulaF1, Machine_NO, Memo, Qty AS TotalTargetQty, Batch FROM Outsole_VML_Work WHERE OVNO = @ovNOParam');
 
     // Query Persion (Lấy người thao tác)
     const persionalPromise = pool.request()
@@ -95,6 +95,7 @@ export const getScanData = async (req: Request, res: Response) => {
     const soMay = workRecord.Machine_NO?.toString() || 'N/A';
     const memo = workRecord.Memo;
     const totalTargetQty = workRecord.TotalTargetQty || 0.0; // Lấy tổng Qty từ Work
+    const soLo = workRecord.Batch || packageNum; // Lấy Batch từ Work, fallback to Package
 
     // Xử lý Persion Result
     const persionalRecord = persionalResult.recordset[0] || {};
@@ -122,7 +123,7 @@ export const getScanData = async (req: Request, res: Response) => {
       tenPhoiKeo: tenPhoiKeo,
       soMay: soMay,
       nguoiThaoTac: nguoiThaoTac,
-      soLo: packageNum,
+      soLo: soLo,
       memo: memo,
       
       // Dữ liệu TỔNG HỢP cho OVNO

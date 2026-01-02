@@ -25,7 +25,7 @@ export const getUnweighedData = async (req: Request, res: Response) => {
         W.Qty AS totalTargetQty,
         
         P.UserName AS nguoiThaoTac,
-        S.Package AS soLo,
+        W.Batch AS soLo,
 
         -- Thêm cột loại, nếu null thì 'chua'
         COALESCE(H.loai, 'chua') AS loai
@@ -63,3 +63,67 @@ export const getUnweighedData = async (req: Request, res: Response) => {
     res.status(500).send({ message: 'Lỗi máy chủ nội bộ khi đồng bộ' });
   }
 };
+
+/**
+ * API: GET /api/sync/persons
+ * Lấy dữ liệu từ bảng Outsole_VML_Persion (danh sách người dùng)
+ */
+export const getPersonsData = async (req: Request, res: Response) => {
+  try {
+    const pool = getPool();
+
+    const result = await pool.request().query(`
+      SELECT 
+        MUserID,
+        UserName
+      FROM Outsole_VML_Persion
+      ORDER BY MUserID
+    `);
+
+    res.json(result.recordset);
+
+  } catch (err: unknown) {
+    console.error('Lỗi khi lấy dữ liệu người dùng:');
+
+    if (err instanceof Error) {
+      console.error(err.message);
+    } else {
+      console.error(err);
+    }
+
+    res.status(500).send({ message: 'Lỗi máy chủ nội bộ khi lấy dữ liệu người dùng' });
+  }
+};
+
+/**
+ * API: GET /api/sync/devices
+ * Lấy dữ liệu từ bảng Outsole_VML_Devices (STT, Name, Address)
+ */
+export const getDevicesData = async (req: Request, res: Response) => {
+  try {
+    const pool = getPool();
+
+    const result = await pool.request().query(`
+      SELECT
+        STT,
+        Name,
+        Address
+      FROM Outsole_VML_Devices
+      ORDER BY STT
+    `);
+
+    res.json(result.recordset);
+
+  } catch (err: unknown) {
+    console.error('Lỗi khi lấy dữ liệu devices:');
+
+    if (err instanceof Error) {
+      console.error(err.message);
+    } else {
+      console.error(err);
+    }
+
+    res.status(500).send({ message: 'Lỗi máy chủ nội bộ khi lấy dữ liệu devices' });
+  }
+};
+
