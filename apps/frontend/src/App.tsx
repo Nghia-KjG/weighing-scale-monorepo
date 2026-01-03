@@ -15,6 +15,7 @@ import NotFoundPage from './components/404/NotFoundPage';
 import SettingsModal from './components/ui/SettingsModal/SettingsModal';
 import { useAdminPageLogic } from './hooks/useHistoryPage';
 import UnweighedPage from './components/UnweighedPage/UnweighedPage';
+import DeviceManager from './components/DeviceManager/DeviceManager';
 
 function App() {
   const historyLogic = useAdminPageLogic();
@@ -29,7 +30,7 @@ function App() {
     const handleRouteChange = () => {
       const newRoute = window.location.pathname;
       console.log('[App] Route changed from', currentRoute, 'to', newRoute);
-      
+
       // Nếu route thay đổi
       if (newRoute !== currentRoute) {
         // Nếu cân đang kết nối
@@ -43,7 +44,7 @@ function App() {
 
     // Listen popstate event (khi user bấm back/forward)
     window.addEventListener('popstate', handleRouteChange);
-    
+
     // Observer cho route change trong SPA (check every 100ms)
     const routeCheckInterval = setInterval(() => {
       const newRoute = window.location.pathname;
@@ -66,15 +67,15 @@ function App() {
     }
 
     try {
-   const portSelected = await scaleService.requestPort();
-   if (!portSelected) return;
+      const portSelected = await scaleService.requestPort();
+      if (!portSelected) return;
 
-   const baudRate = Number(localStorage.getItem('scaleBaudRate')) || 9600;
-   const connected = await scaleService.connect(baudRate);
-   
-   // scaleConnected sẽ auto-update qua listener ở useEffect trên
-   // setScaleConnected(connected); // Không cần dòng này nữa
-      
+      const baudRate = Number(localStorage.getItem('scaleBaudRate')) || 9600;
+      const connected = await scaleService.connect(baudRate);
+
+      // scaleConnected sẽ auto-update qua listener ở useEffect trên
+      // setScaleConnected(connected); // Không cần dòng này nữa
+
       // Báo cho các hook khác (như useWeighingStation) biết là cân đã được BẬT
       if (connected) {
         localStorage.setItem('scaleEnabled', 'true');
@@ -88,17 +89,17 @@ function App() {
         console.log('[App] Dispatch storage event: scaleEnabled=true');
       }
 
-  } catch (error) {
-   console.error('Lỗi kết nối cân:', error);
-  }
- }, []);
+    } catch (error) {
+      console.error('Lỗi kết nối cân:', error);
+    }
+  }, []);
 
   // Hàm ngắt kết nối cân
   const handleDisconnectScale = useCallback(async () => {
-  await scaleService.disconnect();
-  // scaleConnected sẽ auto-update qua listener ở useEffect trên
-  // setScaleConnected(false); // Không cần dòng này nữa
-    
+    await scaleService.disconnect();
+    // scaleConnected sẽ auto-update qua listener ở useEffect trên
+    // setScaleConnected(false); // Không cần dòng này nữa
+
     // Báo cho các hook khác biết là cân đã TẮT
     localStorage.setItem('scaleEnabled', 'false');
     // 🔹 Dispatch storage event để hook detect
@@ -109,7 +110,7 @@ function App() {
       storageArea: localStorage
     }));
     console.log('[App] Dispatch storage event: scaleEnabled=false');
- }, []);
+  }, []);
 
   return (
     <div className="min-h-screen bg-sky-200 flex flex-col">
@@ -120,7 +121,7 @@ function App() {
         setIsAutoRefresh={historyLogic.setIsAutoRefresh}
         refreshData={historyLogic.refreshData}
         formatLastRefresh={historyLogic.formatLastRefresh}
-        dateRange={historyLogic.dateRange} 
+        dateRange={historyLogic.dateRange}
         setDateRange={historyLogic.setDateRange}
         onConnectScale={handleConnectScale}
         onDisconnectScale={handleDisconnectScale}
@@ -151,7 +152,7 @@ function App() {
             path="/history"
             element={
               <AdminProtectedRoute>
-                <HistoryPage {...historyLogic}/>
+                <HistoryPage {...historyLogic} />
               </AdminProtectedRoute>
             }
           />
@@ -170,6 +171,15 @@ function App() {
             element={
               <AdminProtectedRoute>
                 <UnweighedPage />
+              </AdminProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/devices"
+            element={
+              <AdminProtectedRoute>
+                <DeviceManager />
               </AdminProtectedRoute>
             }
           />

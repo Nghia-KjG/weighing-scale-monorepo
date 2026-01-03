@@ -94,36 +94,3 @@ export const getPersonsData = async (req: Request, res: Response) => {
     res.status(500).send({ message: 'Lỗi máy chủ nội bộ khi lấy dữ liệu người dùng' });
   }
 };
-
-/**
- * API: GET /api/sync/devices
- * Lấy dữ liệu từ bảng Outsole_VML_Devices (STT, Name, Address)
- */
-export const getDevicesData = async (req: Request, res: Response) => {
-  try {
-    const pool = getPool();
-
-    const result = await pool.request().query(`
-      SELECT
-        STT,
-        Name,
-        Address
-      FROM Outsole_VML_Devices
-      ORDER BY STT
-    `);
-
-    res.json(result.recordset);
-
-  } catch (err: unknown) {
-    console.error('Lỗi khi lấy dữ liệu devices:');
-
-    if (err instanceof Error) {
-      console.error(err.message);
-    } else {
-      console.error(err);
-    }
-
-    res.status(500).send({ message: 'Lỗi máy chủ nội bộ khi lấy dữ liệu devices' });
-  }
-};
-

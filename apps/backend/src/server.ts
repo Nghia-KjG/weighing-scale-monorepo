@@ -1,9 +1,9 @@
 // src/server.ts
 import 'dotenv/config';
-import express, {  } from 'express';
+import express, { } from 'express';
 import cors from 'cors';
-import morgan, {  } from 'morgan';
-import { connectDb, closeDb } from './config/db'; 
+import morgan, { } from 'morgan';
+import { connectDb, closeDb } from './config/db';
 // Import các routes
 import scanRoutes from './api/routes/scanRoutes';
 import weighingRoutes from './api/routes/weighingRoutes';
@@ -13,6 +13,7 @@ import syncRoutes from './api/routes/syncRoutes';
 import pingRoutes from './api/routes/pingRoutes';
 import dashboardRoutes from './api/routes/dashboardRoutes';
 import unweighedRoutes from './api/routes/unweighedRoutes';
+import deviceRoutes from './api/routes/deviceRoutes';
 
 
 async function startServer() {
@@ -30,14 +31,14 @@ async function startServer() {
     const hour = pad(d.getHours());
     const minute = pad(d.getMinutes());
     const second = pad(d.getSeconds());
-    
+
     // Tính toán Timezone offset (ví dụ: +0700)
     const offset = -d.getTimezoneOffset(); // Lấy offset (phút) và đảo dấu
     const offsetSign = offset >= 0 ? '+' : '-';
     const offsetHours = pad(Math.floor(Math.abs(offset) / 60));
     const offsetMinutes = pad(Math.abs(offset) % 60);
     const timezone = `${offsetSign}${offsetHours}${offsetMinutes}`;
-    
+
     // Format: [03/Nov/2025:15:54:26 +0700]
     return `[${day}/${month}/${year}--${hour}:${minute}:${second} ${timezone}]`;
   };
@@ -58,6 +59,7 @@ async function startServer() {
   app.use('/api', pingRoutes);
   app.use('/api', dashboardRoutes);
   app.use('/api', unweighedRoutes);
+  app.use('/api', deviceRoutes);
 
   // Basic root route (optional)
   app.get('/', (req, res) => {
@@ -66,38 +68,38 @@ async function startServer() {
 
   // 404 Not Found
   app.use((req, res) => {
-      res.status(404).send({ message: "Endpoint not found" });
+    res.status(404).send({ message: "Endpoint not found" });
   });
 
   // Start Listening
   const PORT = Number(process.env.PORT);
   const server = app.listen(PORT, '0.0.0.0', () => { // <-- THÊM '0.0.0.0'
     console.log(`🚀 Server TS running at http://localhost:${PORT}`);
-        // Bạn cũng có thể thêm IP LAN vào đây để tiện theo dõi:
-     console.log(`🚀 Và trên mạng LAN tại http://192.168.30.175:${PORT}`); 
+    // Bạn cũng có thể thêm IP LAN vào đây để tiện theo dõi:
+    console.log(`🚀 Và trên mạng LAN tại http://192.168.30.175:${PORT}`);
   });
 
   // Tắt lắng nghe và đóng kết nối DB khi ứng dụng tắt
   process.on('SIGTERM', async () => {
     console.log('SIGTERM signal received: closing HTTP server and DB connection');
     server.close(async () => {
-        await closeDb();
-        console.log('HTTP server closed');
-        process.exit(0);
+      await closeDb();
+      console.log('HTTP server closed');
+      process.exit(0);
     });
   });
 
-   process.on('SIGINT', async () => { // Handle Ctrl+C
+  process.on('SIGINT', async () => { // Handle Ctrl+C
     console.log('SIGINT signal received: closing HTTP server and DB connection');
     server.close(async () => {
-        await closeDb();
-        console.log('HTTP server closed');
-        process.exit(0);
+      await closeDb();
+      console.log('HTTP server closed');
+      process.exit(0);
     });
   });
 
 }
 
 startServer().catch(err => {
-    console.error("Failed to start server:", err);
+  console.error("Failed to start server:", err);
 });
