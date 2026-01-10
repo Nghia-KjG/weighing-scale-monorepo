@@ -45,7 +45,7 @@ export function useLoginPage() {
       showNotification(`Chào mừng ${user.userName}!`, 'success');
       
       setTimeout(() => {
-        navigate('/WeighingStationNew');
+        navigate('/dashboard'); // Chuyển hướng đến dashboard sau khi đăng nhập thành công
       }, 1500);
 
     } catch (error) {

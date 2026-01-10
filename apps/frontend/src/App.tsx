@@ -184,7 +184,7 @@ function App() {
             }
           />
 
-          <Route path="/" element={<Navigate to="/WeighingStationNew" replace />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>

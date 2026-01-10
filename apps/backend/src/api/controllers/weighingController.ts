@@ -6,12 +6,12 @@ import { getPool } from '../../config/db';
 export const completeWeighing = async (req: Request, res: Response) => {
   console.log(`📦 [POST /api/complete] Yêu cầu từ IP: ${req.ip} | Dữ liệu nhận được:`, req.body);
   // 1. Lấy dữ liệu (Giữ nguyên)
-  const { maCode, khoiLuongCan, thoiGianCan, loai } = req.body;
+  const { maCode, khoiLuongCan, thoiGianCan, loai, WUserID } = req.body;
   const mixTime = new Date(thoiGianCan);
 
   // 2. Kiểm tra dữ liệu đầu vào (Giữ nguyên)
-  if (!maCode || khoiLuongCan == null || !thoiGianCan || !loai) {
-    return res.status(401).send({ message: 'Thiếu dữ liệu (maCode, khoiLuongCan, thoiGianCan, loai).' });
+  if (!maCode || khoiLuongCan == null || !thoiGianCan || !loai || !WUserID) {
+    return res.status(401).send({ message: 'Thiếu dữ liệu (maCode, khoiLuongCan, thoiGianCan, loai, WUserID).' });
   }
 
   let pool: sql.ConnectionPool | undefined;
@@ -73,7 +73,7 @@ export const completeWeighing = async (req: Request, res: Response) => {
       }
     }*/
 
-    // KIỂM TRA: Tổng khối lượng cân xuất có vượt quá khối lượng đã nhập
+    // KIỂM TRA: Tổng khối lượng cân xuất có vượt quá khối lượng đã nhập của chính mã này
     if (loai === 'xuat') {
       // Kiểm tra xem đã có bản ghi 'nhap' cho chính maCode này trong History chưa
       const nhapCheck = await pool.request()
@@ -90,27 +90,26 @@ export const completeWeighing = async (req: Request, res: Response) => {
           message: `Lỗi: Mã QRCode này chưa được cân nhập!` 
         });
       }
-      // Lấy tổng Nhập và Xuất HIỆN TẠI cho OVNO này
-      // (Chúng ta phải Join với WorkS để lọc theo OVNO)
+      
+      // Lấy khối lượng Nhập và tổng Xuất HIỆN TẠI của chính mã này
       const balanceCheck = await pool.request()
-        .input('ovNOParam', sql.NVarChar, ovNO) // Giả sử OVNO là NVarChar
+        .input('maCodeParam', sql.VarChar(20), maCode)
         .query(`
           SELECT 
-            ISNULL(SUM(CASE WHEN H.loai = 'nhap' THEN H.KhoiLuongCan ELSE 0 END), 0) AS TotalNhap,
-            ISNULL(SUM(CASE WHEN H.loai = 'xuat' THEN H.KhoiLuongCan ELSE 0 END), 0) AS TotalXuat
-          FROM Outsole_VML_History AS H
-          INNER JOIN Outsole_VML_WorkS AS S ON H.QRCode = S.QRCode
-          WHERE S.OVNO = @ovNOParam
+            ISNULL(SUM(CASE WHEN loai = 'nhap' THEN KhoiLuongCan ELSE 0 END), 0) AS TotalNhap,
+            ISNULL(SUM(CASE WHEN loai = 'xuat' THEN KhoiLuongCan ELSE 0 END), 0) AS TotalXuat
+          FROM Outsole_VML_History
+          WHERE QRCode = @maCodeParam
         `);
       
       const { TotalNhap, TotalXuat } = balanceCheck.recordset[0];
       const currentWeighAmount = parseFloat(khoiLuongCan); 
       const totalAfterWeighing = TotalXuat + currentWeighAmount;
-      const currentStock = TotalNhap - TotalXuat;
+      const remainingStock = TotalNhap - TotalXuat;
 
       if (totalAfterWeighing > (TotalNhap + 0.001)) {
         return res.status(406).send({ 
-          message: `Lỗi: Khối lượng xuất vượt quá tồn kho! (Tồn: ${currentStock.toFixed(3)}kg / Muốn xuất: ${khoiLuongCan}kg)` 
+          message: `Lỗi: Khối lượng xuất vượt quá khối lượng đã nhập của mã này! (Còn lại: ${remainingStock.toFixed(3)}kg / Muốn xuất: ${khoiLuongCan}kg / Đã nhập: ${TotalNhap}kg)` 
         });
       }
     }
@@ -139,9 +138,10 @@ export const completeWeighing = async (req: Request, res: Response) => {
       .input('timeWeighParam', sql.SmallDateTime, mixTime)
       .input('khoiLuongCanParam', sql.Money, khoiLuongCan)
       .input('loaiParam', sql.VarChar(10), loai)
+      .input('wUserIDParam', sql.VarChar(50), WUserID)
       .query(`
-        INSERT INTO Outsole_VML_History (QRCode, TimeWeigh, KhoiLuongCan, loai)
-        VALUES (@maCodeParam, @timeWeighParam, @khoiLuongCanParam, @loaiParam)
+        INSERT INTO Outsole_VML_History (QRCode, TimeWeigh, KhoiLuongCan, loai, WUserID)
+        VALUES (@maCodeParam, @timeWeighParam, @khoiLuongCanParam, @loaiParam, @wUserIDParam)
       `);
 
     // 7. Commit (Giữ nguyên)

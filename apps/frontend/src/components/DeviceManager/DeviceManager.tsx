@@ -132,7 +132,7 @@ const DeviceManager: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {devices.map((device, index) => (
+                                    {devices.map((device) => (
                                         <tr key={device.STT} className="hover:bg-blue-50/50 transition-colors duration-150">
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">#{device.STT}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">{device.Name}</td>

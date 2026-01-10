@@ -8,7 +8,7 @@ import { useSettings } from '../../hooks/useSettings';
 
 import logoIcon from '../../assets/logo.png';
 import logoutIcon from '../../assets/logout.png';
-import homeIcon from '../../assets/weight-scale.png';
+//import homeIcon from '../../assets/weight-scale.png';
 import gridPenIcon from '../../assets/grid_pen.svg';
 import controlPanelIcon from '../../assets/control_panel.svg';
 import unweigh from '../../assets/document-gear.svg'
@@ -42,11 +42,11 @@ function Header() {
         <div className="flex items-center gap-6">
           {/* 1. KHU VỰC NAV CHO DESKTOP: Ẩn trên mobile */}
           <nav className="hidden md:flex items-center gap-1 relative">
-            <NavLink to="/WeighingStationNew" title="Trạm Cân">
+            {/*<NavLink to="/WeighingStationNew" title="Trạm Cân">
               <span className="relative z-10">
                 <img src={homeIcon} alt="Trang chủ" className="h-6 w-6 " />
               </span>
-            </NavLink>
+            </NavLink>*/}
             {user.role === 'admin' && (
               <>
                 <NavLink to="/dashboard" title="Dashboard">
@@ -80,10 +80,10 @@ function Header() {
                 
                 {/* 2. CÁC LINK NAV CHO MOBILE: Chỉ hiện trên mobile */}
                 <div className="md:hidden">
-                  <Link to="/WeighingStationNew" className={dropdownLinkClasses} onClick={toggleMenu}>
+                  {/*<Link to="/WeighingStationNew" className={dropdownLinkClasses} onClick={toggleMenu}>
                     <img src={homeIcon} alt="Trang chủ" className="h-5 w-5 filters invert" />
                     Trạm Cân
-                  </Link>
+                  </Link>*/}
                   {user.role === 'admin' && (
                     <>
                       <Link to="/history" className={dropdownLinkClasses} onClick={toggleMenu}>
@@ -106,16 +106,29 @@ function Header() {
                 
                 {/* NÚT CÀI ĐẶT - Chỉ hiển thị cho admin */}
                 {user.role === 'admin' && (
-                  <button 
-                    className={dropdownLinkClasses}
-                    onClick={handleSettingsClick}
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    Cài đặt
-                  </button>
+                  <>
+                    <Link to="/devices" className={dropdownLinkClasses} onClick={toggleMenu}>
+                     <svg width="16" height="16" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="4" y="12" width="56" height="40" rx="4" fill="#E2E8F0" stroke="#475569" stroke-width="4"/>
+                    <rect x="10" y="18" width="44" height="18" rx="1" fill="#0F172A"/>
+                    <rect x="14" y="24" width="20" height="6" fill="#22C55E"/>
+                    <circle cx="14" cy="44" r="4" fill="#EF4444"/>
+                    <circle cx="26" cy="44" r="4" fill="#3B82F6"/>
+                    <circle cx="38" cy="44" r="4" fill="#3B82F6"/>
+                </svg>
+                      Thiết bị
+                    </Link>
+                    <button 
+                      className={dropdownLinkClasses}
+                      onClick={handleSettingsClick}
+                    >
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Cài đặt
+                    </button>
+                  </>
                 )}
 
                 {/* Đường kẻ phân cách trước nút Đăng xuất */}

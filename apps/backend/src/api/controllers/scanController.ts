@@ -73,18 +73,22 @@ export const getScanData = async (req: Request, res: Response) => {
         SELECT @TotalPackages AS Y_TotalPackages, @WeighedNhapPackages AS X_WeighedNhap;
       `);
       
-    // THÊM QUERY MỚI: Kiểm tra trạng thái cân của CHÍNH MÃ NÀY
+    // THÊM QUERY MỚI: Kiểm tra trạng thái cân của CHÍNH MÃ NÀY và lấy trọng lượng
     const historyCheckPromise = pool.request()
       .input('maCodeParam', sql.VarChar(20), maCode)
       .query(`
-        SELECT loai FROM Outsole_VML_History WHERE QRCode = @maCodeParam
+        SELECT 
+          ISNULL(SUM(CASE WHEN loai = 'nhap' THEN KhoiLuongCan ELSE 0 END), 0) AS weighedNhapAmount,
+          ISNULL(SUM(CASE WHEN loai = 'xuat' THEN KhoiLuongCan ELSE 0 END), 0) AS weighedXuatAmount
+        FROM Outsole_VML_History 
+        WHERE QRCode = @maCodeParam
       `);
 
-    // Chờ cả 4 query song song
+    // Chờ cả 5 query song song
     const [workResult, persionalResult, historySummaryResult, packageCountResult, historyCheckResult] = await Promise.all([
       workPromise, 
       persionalPromise, 
-      historySummaryPromise, // Thêm query mới
+      historySummaryPromise,
       packageCountPromise,
       historyCheckPromise,
     ]);
@@ -111,9 +115,14 @@ export const getScanData = async (req: Request, res: Response) => {
     const x_WeighedNhap = packageCount.X_WeighedNhap || 0;
     const y_TotalPackages = packageCount.Y_TotalPackages || 0;
 
-    // Xử lý History Check Result (Mới)
-    const isNhapWeighed = historyCheckResult.recordset.some(r => r.loai === 'nhap');
-    const isXuatWeighed = historyCheckResult.recordset.some(r => r.loai === 'xuat');
+    // Xử lý History Check Result (Lấy trọng lượng đã cân của chính mã này)
+    const historyCheckRecord = historyCheckResult.recordset[0] || {};
+    const weighedNhapAmount = historyCheckRecord.weighedNhapAmount || 0;
+    const weighedXuatAmount = historyCheckRecord.weighedXuatAmount || 0;
+    
+    // Kiểm tra trạng thái cân
+    const isNhapWeighed = weighedNhapAmount > 0;
+    const isXuatWeighed = weighedXuatAmount > 0;
 
     // Combine results
     const responseData = {
@@ -134,6 +143,10 @@ export const getScanData = async (req: Request, res: Response) => {
       y_TotalPackages: y_TotalPackages,
       isNhapWeighed: isNhapWeighed,
       isXuatWeighed: isXuatWeighed,
+      
+      // Trọng lượng đã cân của chính mã này
+      weighedNhapAmount: weighedNhapAmount,
+      weighedXuatAmount: weighedXuatAmount,
     };
 
     res.json(responseData);
