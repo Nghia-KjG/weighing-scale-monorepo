@@ -45,7 +45,8 @@ export const getHistory = async (req: Request, res: Response) => {
       LEFT JOIN Outsole_VML_WorkS AS S ON H.QRCode = S.QRCode
       LEFT JOIN Outsole_VML_Work AS W ON S.OVNO = W.OVNO
       LEFT JOIN Outsole_VML_Persion AS P ON S.MUserID = P.MUserID
-     ${dateFilterSubQuery} 
+      WHERE H.loai != 'modified'
+     ${dateFilterSubQuery.replace('WHERE', 'AND')} 
       ORDER BY 
         S.OVNO, H.TimeWeigh DESC 
     `;

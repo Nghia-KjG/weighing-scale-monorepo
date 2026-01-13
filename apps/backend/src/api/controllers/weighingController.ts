@@ -205,3 +205,143 @@ export const completeWeighing = async (req: Request, res: Response) => {
     res.status(500).send({ message: 'Lỗi server khi lưu dữ liệu cân.' });
   }
 };
+
+export const reweighNhap = async (req: Request, res: Response) => {
+  console.log(`🔄 [POST /api/reweigh] Yêu cầu cân lại từ IP: ${req.ip} | Dữ liệu:`, req.body);
+  console.log('🔍 Device value:', req.body.device, 'Type:', typeof req.body.device);
+  
+  const { maCode, khoiLuongCan, thoiGianCan, WUserID, device } = req.body;
+  const mixTime = new Date(thoiGianCan);
+
+  // Kiểm tra dữ liệu đầu vào
+  if (!maCode || khoiLuongCan == null || !thoiGianCan || !WUserID) {
+    return res.status(400).send({ message: 'Thiếu dữ liệu (maCode, khoiLuongCan, thoiGianCan, WUserID).' });
+  }
+  
+  const deviceValue = device || null;
+
+  let pool: sql.ConnectionPool | undefined;
+  let transaction: sql.Transaction | undefined;
+  let ovNO: string;
+
+  try {
+    pool = getPool();
+
+    // Kiểm tra xem mã code có tồn tại không
+    const preCheckRequest = pool.request();
+    const preCheckResult = await preCheckRequest
+      .input('maCodeParam', sql.VarChar(20), maCode)
+      .query('SELECT RKQty, MixTime, OVNO FROM Outsole_VML_WorkS WHERE QRCode = @maCodeParam');
+
+    if (preCheckResult.recordset.length === 0) {
+      return res.status(404).send({ message: 'Lỗi: Không tìm thấy Mã Code.' });
+    }
+    
+    const currentData = preCheckResult.recordset[0];
+    ovNO = currentData.OVNO;
+
+    // Kiểm tra xem đã có bản ghi nhập trong History chưa
+    const historyCheck = await pool.request()
+      .input('maCodeParam', sql.VarChar(20), maCode)
+      .query(`
+        SELECT 1 AS Exists
+        FROM Outsole_VML_History
+        WHERE QRCode = @maCodeParam AND loai = 'nhap'
+      `);
+
+    if (historyCheck.recordset.length === 0) {
+      return res.status(400).send({ message: 'Mã này chưa được cân nhập lần nào. Vui lòng cân nhập trước.' });
+    }
+
+    // Bắt đầu Transaction
+    transaction = pool.transaction();
+    await transaction.begin();
+
+    // Cập nhật các bản ghi 'nhap' cũ thành 'modified'
+    const updateHistoryRequest = new sql.Request(transaction);
+    const updateResult = await updateHistoryRequest
+      .input('maCodeParam', sql.VarChar(20), maCode)
+      .query(`
+        UPDATE Outsole_VML_History 
+        SET loai = 'modified'
+        WHERE QRCode = @maCodeParam AND loai = 'nhap'
+      `);
+    
+    console.log(`✏️ Đã cập nhật ${updateResult.rowsAffected[0]} bản ghi 'nhap' thành 'modified' cho mã ${maCode}`);
+
+    // Cập nhật Outsole_VML_WorkS với khối lượng mới
+    const updateWorkSRequest = new sql.Request(transaction);
+    await updateWorkSRequest
+      .input('maCodeParam', sql.VarChar(20), maCode)
+      .input('mixTimeParam', sql.SmallDateTime, mixTime)
+      .input('khoiLuongCanParam', sql.Money, khoiLuongCan)
+      .query(`
+        UPDATE Outsole_VML_WorkS 
+        SET MixTime = @mixTimeParam, RKQty = @khoiLuongCanParam
+        WHERE QRCode = @maCodeParam
+      `);
+
+    // INSERT bản ghi mới vào History
+    const insertHistoryRequest = new sql.Request(transaction);
+    await insertHistoryRequest
+      .input('maCodeParam', sql.VarChar(20), maCode)
+      .input('timeWeighParam', sql.SmallDateTime, mixTime)
+      .input('khoiLuongCanParam', sql.Money, khoiLuongCan)
+      .input('loaiParam', sql.VarChar(10), 'nhap')
+      .input('wUserIDParam', sql.VarChar(50), WUserID)
+      .input('deviceParam', sql.NVarChar(100), deviceValue)
+      .query(`
+        INSERT INTO Outsole_VML_History (QRCode, TimeWeigh, KhoiLuongCan, loai, WUserID, Device)
+        VALUES (@maCodeParam, @timeWeighParam, @khoiLuongCanParam, @loaiParam, @wUserIDParam, @deviceParam)
+      `);
+
+    // Commit
+    await transaction.commit();
+    
+    // Lấy dữ liệu tóm tắt mới
+    const workPromise = pool.request()
+      .input('ovNOParam', sql.NVarChar, ovNO)
+      .query('SELECT Qty AS TotalTargetQty, Memo FROM Outsole_VML_Work WHERE OVNO = @ovNOParam');
+    
+    const historySummaryPromise = pool.request()
+      .input('ovNOParam', sql.NVarChar, ovNO)
+      .query(`
+        SELECT 
+          ISNULL(SUM(CASE WHEN H.loai = 'nhap' THEN H.KhoiLuongCan ELSE 0 END), 0) AS TotalNhapWeighed,
+          ISNULL(SUM(CASE WHEN H.loai = 'xuat' THEN H.KhoiLuongCan ELSE 0 END), 0) AS TotalXuatWeighed
+        FROM Outsole_VML_History AS H
+        INNER JOIN Outsole_VML_WorkS AS S ON H.QRCode = S.QRCode
+        WHERE S.OVNO = @ovNOParam
+      `);
+      
+    const [workResult, historySummaryResult] = await Promise.all([workPromise, historySummaryPromise]);
+
+    const workRecord = workResult.recordset[0] || {};
+    const historySummary = historySummaryResult.recordset[0] || {};
+    
+    res.status(200).send({ 
+      message: 'Đã cân lại thành công.',
+      summaryData: {
+        totalTargetQty: workRecord.TotalTargetQty || 0.0,
+        totalNhapWeighed: historySummary.TotalNhapWeighed || 0.0,
+        totalXuatWeighed: historySummary.TotalXuatWeighed || 0.0,
+        memo: workRecord.Memo,
+      }
+    });
+
+  } catch (err: unknown) {
+    console.error('Lỗi khi cân lại:');
+
+    if (err instanceof Error) {
+      console.error(err.message);
+    } else {
+      console.error(err);
+    }
+
+    if (transaction) {
+      await transaction.rollback();
+    }
+
+    res.status(500).send({ message: 'Lỗi server khi cân lại.' });
+  }
+};
