@@ -11,38 +11,59 @@ export const getUnweighedSummary = async (req: Request, res: Response) => {
  try {
   const pool = getPool();
 
-  // Query này sẽ JOIN WorkS với History 2 LẦN
-    // 1. Join H_nhap: để kiểm tra xem đã cân nhập chưa
-    // 2. Join H_xuat: để kiểm tra xem đã cân xuất chưa
+  // Query này sẽ tính tổng khối lượng đã xuất và so sánh với khối lượng mẻ
   const summaryQuery = `
+   WITH MaCodeXuat AS (
+    SELECT 
+     S.OVNO,
+     S.QRCode,
+     S.Qty AS khoiLuongMe,
+     COALESCE(SUM(H_xuat.KhoiLuongCan), 0) AS tongKLDaXuat,
+     S.Qty - COALESCE(SUM(H_xuat.KhoiLuongCan), 0) AS khoiLuongConLai
+    FROM 
+     Outsole_VML_WorkS AS S
+    LEFT JOIN 
+     Outsole_VML_History AS H_xuat ON S.QRCode = H_xuat.QRCode AND H_xuat.loai = 'xuat'
+    GROUP BY 
+     S.OVNO, S.QRCode, S.Qty
+   ),
+   MaCodeNhap AS (
+    SELECT 
+     S.QRCode,
+     COUNT(H_nhap.QRCode) AS daNhap
+    FROM 
+     Outsole_VML_WorkS AS S
+    LEFT JOIN 
+     Outsole_VML_History AS H_nhap ON S.QRCode = H_nhap.QRCode AND H_nhap.loai = 'nhap'
+    GROUP BY 
+     S.QRCode
+   )
    SELECT 
     W.OVNO,
     W.FormulaF1,
     W.Memo,
     W.Qty AS totalTargetQty,
-    COUNT(S.QRCode) AS totalPackages,
+    COUNT(MX.QRCode) AS totalPackages,
     
     -- Đếm số lượng mã code CHƯA CÓ trong bảng History (với loai = 'nhap')
-    COUNT(CASE WHEN H_nhap.QRCode IS NULL THEN 1 END) AS chuaCanNhap,
+    COUNT(CASE WHEN MN.daNhap = 0 OR MN.daNhap IS NULL THEN 1 END) AS chuaCanNhap,
     
-    -- *** SỬA LOGIC: Đếm TẤT CẢ mã code CHƯA CÓ trong History (với loai = 'xuat') ***
-    COUNT(CASE WHEN H_xuat.QRCode IS NULL THEN 1 END) AS chuaCanXuat
+    -- Đếm số lượng mã code còn khối lượng có thể xuất (khoiLuongConLai > 0)
+    COUNT(CASE WHEN MX.khoiLuongConLai > 0 THEN 1 END) AS chuaCanXuat
    
    FROM 
     Outsole_VML_Work AS W
    LEFT JOIN 
-    Outsole_VML_WorkS AS S ON W.OVNO = S.OVNO
+    MaCodeXuat AS MX ON W.OVNO = MX.OVNO
    LEFT JOIN 
-    Outsole_VML_History AS H_nhap ON S.QRCode = H_nhap.QRCode AND H_nhap.loai = 'nhap'
-   LEFT JOIN 
-    Outsole_VML_History AS H_xuat ON S.QRCode = H_xuat.QRCode AND H_xuat.loai = 'xuat'
+    MaCodeNhap AS MN ON MX.QRCode = MN.QRCode
    
    GROUP BY 
     W.OVNO, W.FormulaF1, W.Memo, W.Qty
    
-   -- Chỉ hiển thị các OVNO có mã chưa xuất
+   -- Chỉ hiển thị các OVNO có mã còn khối lượng có thể xuất
    HAVING 
-    COUNT(CASE WHEN H_xuat.QRCode IS NULL THEN 1 END) > 0
+    COUNT(CASE WHEN MX.khoiLuongConLai > 0 THEN 1 END) > 0
    
    ORDER BY 
     W.OVNO DESC
@@ -89,33 +110,34 @@ export const getUnweighedDetails = async (req: Request, res: Response) => {
     const pool = getPool();
 
     // Query này tìm các mã code thuộc OVNO
-      // và gán trạng thái "Chưa Cân Nhập" hoặc "Chưa Cân Xuất"
+      // tính tổng khối lượng đã xuất và khối lượng còn lại
     const detailsQuery = `
       SELECT 
         S.QRCode AS maCode,
         S.Qty AS khoiLuongMe,
         S.Package AS soLo,
-      CASE
-        WHEN H_nhap.QRCode IS NULL THEN 'chua nhap'
-        WHEN H_nhap.QRCode IS NOT NULL AND H_xuat.QRCode IS NULL THEN 'chua xuat'
-      END AS trangThai
+        COALESCE(SUM(H_xuat.KhoiLuongCan), 0) AS khoiLuongDaXuat,
+        S.Qty - COALESCE(SUM(H_xuat.KhoiLuongCan), 0) AS khoiLuongConLai,
+        CASE
+          WHEN NOT EXISTS (SELECT 1 FROM Outsole_VML_History WHERE QRCode = S.QRCode AND loai = 'nhap') THEN 'chua nhap'
+          WHEN S.Qty - COALESCE(SUM(H_xuat.KhoiLuongCan), 0) > 0 THEN 'chua xuat het'
+          ELSE 'da xuat het'
+        END AS trangThai
       FROM 
         Outsole_VML_WorkS AS S
-      LEFT JOIN 
-        Outsole_VML_History AS H_nhap 
-        ON S.QRCode = H_nhap.QRCode AND H_nhap.loai = 'nhap'
       LEFT JOIN 
         Outsole_VML_History AS H_xuat 
         ON S.QRCode = H_xuat.QRCode AND H_xuat.loai = 'xuat'
       WHERE 
         S.OVNO = @ovnoParam
       GROUP BY
-        S.QRCode, S.Qty, S.Package, H_nhap.QRCode, H_xuat.QRCode
+        S.QRCode, S.Qty, S.Package
       HAVING
-        H_nhap.QRCode IS NULL       -- chưa nhập
-        OR H_xuat.QRCode IS NULL    -- chưa xuất
+        -- Chỉ hiển thị mã chưa nhập HOẶC còn khối lượng có thể xuất
+        NOT EXISTS (SELECT 1 FROM Outsole_VML_History WHERE QRCode = S.QRCode AND loai = 'nhap')
+        OR (S.Qty - COALESCE(SUM(H_xuat.KhoiLuongCan), 0) > 0)
       ORDER BY 
-        soLo;
+        S.Package;
     `;
 
     const result = await pool.request()

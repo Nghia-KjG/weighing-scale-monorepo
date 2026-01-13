@@ -19,7 +19,9 @@ export interface UnweighedDetail {
   maCode: string;
   khoiLuongMe: number;
   soLo: number;
-  trangThai: 'chua nhap' | 'chua xuat';
+  khoiLuongDaXuat: number;
+  khoiLuongConLai: number;
+  trangThai: 'chua nhap' | 'chua xuat het' | 'da xuat het';
 }
 
 export function useUnweighedPage() {

@@ -35,7 +35,7 @@ export const getHistory = async (req: Request, res: Response) => {
     // 3. Lấy TẤT CẢ bản ghi lịch sử (với WHERE động)
     const historyQuery = `
       SELECT 
-        H.QRCode AS maCode, CONVERT(VARCHAR, H.TimeWeigh, 120) AS mixTime, H.KhoiLuongCan AS realQty, H.loai,
+        H.QRCode AS maCode, CONVERT(VARCHAR, H.TimeWeigh, 120) AS mixTime, H.KhoiLuongCan AS realQty, H.loai, H.Device AS device,
         S.OVNO AS ovNO, S.Package AS package, S.MUserID, S.Qty AS qtys,
         W.FormulaF1 AS tenPhoiKeo, W.Machine_NO AS soMay, W.Qty AS totalTargetQty, W.Memo,
         P.UserName AS nguoiThaoTac,
@@ -89,6 +89,10 @@ export const getHistory = async (req: Request, res: Response) => {
           records: [], // Danh sách chứa các bản ghi con
         };
       }
+
+      // Format soLo thành "Package/TotalPackages"
+      //const y_Total = groupedData[ovNO].y_TotalPackages;
+      //record.soLo = `${record.package}/${y_Total}`;
 
       // Thêm bản ghi vào nhóm
       groupedData[ovNO].records.push(record);

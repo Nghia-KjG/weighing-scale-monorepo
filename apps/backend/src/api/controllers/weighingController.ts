@@ -5,14 +5,19 @@ import { getPool } from '../../config/db';
 
 export const completeWeighing = async (req: Request, res: Response) => {
   console.log(`📦 [POST /api/complete] Yêu cầu từ IP: ${req.ip} | Dữ liệu nhận được:`, req.body);
+  console.log('🔍 Device value:', req.body.device, 'Type:', typeof req.body.device);
+  
   // 1. Lấy dữ liệu (Giữ nguyên)
-  const { maCode, khoiLuongCan, thoiGianCan, loai, WUserID } = req.body;
+  const { maCode, khoiLuongCan, thoiGianCan, loai, WUserID, device } = req.body;
   const mixTime = new Date(thoiGianCan);
 
   // 2. Kiểm tra dữ liệu đầu vào (Giữ nguyên)
   if (!maCode || khoiLuongCan == null || !thoiGianCan || !loai || !WUserID) {
     return res.status(401).send({ message: 'Thiếu dữ liệu (maCode, khoiLuongCan, thoiGianCan, loai, WUserID).' });
   }
+  
+  // Device là optional, nếu không có thì để null
+  const deviceValue = device || null;
 
   let pool: sql.ConnectionPool | undefined;
   let transaction: sql.Transaction | undefined;
@@ -139,9 +144,10 @@ export const completeWeighing = async (req: Request, res: Response) => {
       .input('khoiLuongCanParam', sql.Money, khoiLuongCan)
       .input('loaiParam', sql.VarChar(10), loai)
       .input('wUserIDParam', sql.VarChar(50), WUserID)
+      .input('deviceParam', sql.NVarChar(100), deviceValue)
       .query(`
-        INSERT INTO Outsole_VML_History (QRCode, TimeWeigh, KhoiLuongCan, loai, WUserID)
-        VALUES (@maCodeParam, @timeWeighParam, @khoiLuongCanParam, @loaiParam, @wUserIDParam)
+        INSERT INTO Outsole_VML_History (QRCode, TimeWeigh, KhoiLuongCan, loai, WUserID, Device)
+        VALUES (@maCodeParam, @timeWeighParam, @khoiLuongCanParam, @loaiParam, @wUserIDParam, @deviceParam)
       `);
 
     // 7. Commit (Giữ nguyên)

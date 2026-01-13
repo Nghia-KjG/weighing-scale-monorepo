@@ -16,9 +16,13 @@ const UnweighedDetailsTable: React.FC<TableProps> = ({ data }) => {
       text: 'Chưa Cân Nhập',
       className: 'text-blue-600',
     },
-    'chua xuat': {
-      text: 'Chưa Cân Xuất',
-      className: 'text-red-600',
+    'chua xuat het': {
+      text: 'Chưa Cân Xuất Hết',
+      className: 'text-orange-600',
+    },
+    'da xuat het': {
+      text: 'Đã Xuất Hết',
+      className: 'text-green-600',
     }
   };
 
@@ -36,6 +40,12 @@ const UnweighedDetailsTable: React.FC<TableProps> = ({ data }) => {
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               KL Mẻ (kg)
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              KL Đã Xuất (kg)
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              KL Còn Lại (kg)
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Trạng Thái
@@ -57,6 +67,12 @@ const UnweighedDetailsTable: React.FC<TableProps> = ({ data }) => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                   {item.khoiLuongMe.toFixed(3)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  {item.khoiLuongDaXuat.toFixed(3)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                  {item.khoiLuongConLai.toFixed(3)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   {/* 3. Áp dụng text và className */}
