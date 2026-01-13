@@ -210,13 +210,22 @@ export const reweighNhap = async (req: Request, res: Response) => {
   console.log(`🔄 [POST /api/reweigh] Yêu cầu cân lại từ IP: ${req.ip} | Dữ liệu:`, req.body);
   console.log('🔍 Device value:', req.body.device, 'Type:', typeof req.body.device);
   
-  const { maCode, khoiLuongCan, thoiGianCan, WUserID, device } = req.body;
+  const { maCode, khoiLuongCan, thoiGianCan, loai, WUserID, device } = req.body;
   const mixTime = new Date(thoiGianCan);
 
   // Kiểm tra dữ liệu đầu vào
-  if (!maCode || khoiLuongCan == null || !thoiGianCan || !WUserID) {
-    return res.status(400).send({ message: 'Thiếu dữ liệu (maCode, khoiLuongCan, thoiGianCan, WUserID).' });
+  if (!maCode || khoiLuongCan == null || !thoiGianCan || !loai || !WUserID) {
+    return res.status(400).send({ message: 'Thiếu dữ liệu (maCode, khoiLuongCan, thoiGianCan, loai, WUserID).' });
   }
+
+  // Kiểm tra loại cân lại hợp lệ
+  if (loai !== 'nhapLai' && loai !== 'xuatLai') {
+    return res.status(400).send({ message: 'Loại cân lại không hợp lệ. Chỉ chấp nhận "nhapLai" hoặc "xuatLai".' });
+  }
+
+  // Xác định loại gốc cần tìm và loại mới sẽ insert
+  const loaiGoc = loai === 'nhapLai' ? 'nhap' : 'xuat';
+  const loaiMoi = loai === 'nhapLai' ? 'nhap' : 'xuat';
   
   const deviceValue = device || null;
 
@@ -240,34 +249,36 @@ export const reweighNhap = async (req: Request, res: Response) => {
     const currentData = preCheckResult.recordset[0];
     ovNO = currentData.OVNO;
 
-    // Kiểm tra xem đã có bản ghi nhập trong History chưa
+    // Kiểm tra xem đã có bản ghi với loại tương ứng trong History chưa
     const historyCheck = await pool.request()
       .input('maCodeParam', sql.VarChar(20), maCode)
+      .input('loaiGocParam', sql.VarChar(10), loaiGoc)
       .query(`
         SELECT 1 AS Exists
         FROM Outsole_VML_History
-        WHERE QRCode = @maCodeParam AND loai = 'nhap'
+        WHERE QRCode = @maCodeParam AND loai = @loaiGocParam
       `);
 
     if (historyCheck.recordset.length === 0) {
-      return res.status(400).send({ message: 'Mã này chưa được cân nhập lần nào. Vui lòng cân nhập trước.' });
+      return res.status(400).send({ message: `Mã này chưa được cân ${loaiGoc} lần nào. Vui lòng cân ${loaiGoc} trước.` });
     }
 
     // Bắt đầu Transaction
     transaction = pool.transaction();
     await transaction.begin();
 
-    // Cập nhật các bản ghi 'nhap' cũ thành 'modified'
+    // Cập nhật các bản ghi cũ với loại tương ứng thành 'modified'
     const updateHistoryRequest = new sql.Request(transaction);
     const updateResult = await updateHistoryRequest
       .input('maCodeParam', sql.VarChar(20), maCode)
+      .input('loaiGocParam', sql.VarChar(10), loaiGoc)
       .query(`
         UPDATE Outsole_VML_History 
         SET loai = 'modified'
-        WHERE QRCode = @maCodeParam AND loai = 'nhap'
+        WHERE QRCode = @maCodeParam AND loai = @loaiGocParam
       `);
     
-    console.log(`✏️ Đã cập nhật ${updateResult.rowsAffected[0]} bản ghi 'nhap' thành 'modified' cho mã ${maCode}`);
+    console.log(`✏️ Đã cập nhật ${updateResult.rowsAffected[0]} bản ghi '${loaiGoc}' thành 'modified' cho mã ${maCode}`);
 
     // Cập nhật Outsole_VML_WorkS với khối lượng mới
     const updateWorkSRequest = new sql.Request(transaction);
@@ -281,18 +292,18 @@ export const reweighNhap = async (req: Request, res: Response) => {
         WHERE QRCode = @maCodeParam
       `);
 
-    // INSERT bản ghi mới vào History
+    // INSERT bản ghi mới vào History với loại tương ứng
     const insertHistoryRequest = new sql.Request(transaction);
     await insertHistoryRequest
       .input('maCodeParam', sql.VarChar(20), maCode)
       .input('timeWeighParam', sql.SmallDateTime, mixTime)
       .input('khoiLuongCanParam', sql.Money, khoiLuongCan)
-      .input('loaiParam', sql.VarChar(10), 'nhap')
+      .input('loaiMoiParam', sql.VarChar(10), loaiMoi)
       .input('wUserIDParam', sql.VarChar(50), WUserID)
       .input('deviceParam', sql.NVarChar(100), deviceValue)
       .query(`
         INSERT INTO Outsole_VML_History (QRCode, TimeWeigh, KhoiLuongCan, loai, WUserID, Device)
-        VALUES (@maCodeParam, @timeWeighParam, @khoiLuongCanParam, @loaiParam, @wUserIDParam, @deviceParam)
+        VALUES (@maCodeParam, @timeWeighParam, @khoiLuongCanParam, @loaiMoiParam, @wUserIDParam, @deviceParam)
       `);
 
     // Commit
