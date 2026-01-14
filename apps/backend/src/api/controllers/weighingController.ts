@@ -40,11 +40,19 @@ export const completeWeighing = async (req: Request, res: Response) => {
     
     const currentData = preCheckResult.recordset[0];
     ovNO = currentData.OVNO; // Lấy OVNO để kiểm tra tổng
-    // KIỂM TRA: Kiểm tra nếu là 'nhap' thì maCode đó có nhập hay chưa
+    
+    // KIỂM TRA: CHỈ áp dụng cho NHẬP - chỉ cho phép cân nhập 1 lần duy nhất
+    // XUẤT có thể cân nhiều lần cho đến khi hết hàng
     if (loai === 'nhap') {
-      // ... (logic kiểm tra "đã cân")
-      if (currentData.RKQty != null && currentData.MixTime != null) {
-        return res.status(402).send({ message: 'Mã QRCode này đã cân (Nhập)!' });
+      const historyCheckRequest = pool.request();
+      const historyCheckResult = await historyCheckRequest
+        .input('maCodeParam', sql.VarChar(20), maCode)
+        .query('SELECT 1 FROM Outsole_VML_History WHERE QRCode = @maCodeParam AND loai = \'nhap\'');
+      
+      if (historyCheckResult.recordset.length > 0) {
+        return res.status(402).send({ 
+          message: `Mã QRCode này đã cân nhập rồi! Vui lòng dùng chức năng "Cân lại" thay vì "Cân mới".` 
+        });
       }
     }
 
@@ -135,8 +143,17 @@ export const completeWeighing = async (req: Request, res: Response) => {
         SET MixTime = @mixTimeParam, RKQty = @khoiLuongCanParam
         WHERE QRCode = @maCodeParam
       `);
+    
+    // Kiểm tra CurrentQty hiện tại trong WorkS (để log debug)
+    const checkWorkSRequest = new sql.Request(transaction);
+    const checkWorkSResult = await checkWorkSRequest
+      .input('maCodeParam', sql.VarChar(20), maCode)
+      .query('SELECT CurrentQty FROM Outsole_VML_WorkS WHERE QRCode = @maCodeParam');
+    
+    const currentWorkSQty = checkWorkSResult.recordset[0]?.CurrentQty || 0;
+    console.log(`📊 [${loai.toUpperCase()}] Mã ${maCode}: WorkS.CurrentQty hiện tại = ${currentWorkSQty}kg, Muốn ${loai} = ${khoiLuongCan}kg`);
 
-    // 6. INSERT vào Outsole_VML_History (Giữ nguyên)
+    // 6. INSERT vào Outsole_VML_History (KHÔNG set CurrentQty, để trigger tự động tính)
     const insertHistoryRequest = new sql.Request(transaction);
     await insertHistoryRequest
       .input('maCodeParam', sql.VarChar(20), maCode)
@@ -149,6 +166,8 @@ export const completeWeighing = async (req: Request, res: Response) => {
         INSERT INTO Outsole_VML_History (QRCode, TimeWeigh, KhoiLuongCan, loai, WUserID, Device)
         VALUES (@maCodeParam, @timeWeighParam, @khoiLuongCanParam, @loaiParam, @wUserIDParam, @deviceParam)
       `);
+    
+    console.log(`✅ [${loai.toUpperCase()}] Đã INSERT vào History. Trigger sẽ tự động cập nhật CurrentQty.`);
 
     // 7. Commit (Giữ nguyên)
     await transaction.commit();
@@ -192,17 +211,24 @@ export const completeWeighing = async (req: Request, res: Response) => {
     console.error('Lỗi Transaction khi hoàn tất cân:');
 
     if (err instanceof Error) {
-      console.error(err.message);
+      console.error('❌ Error Message:', err.message);
+      console.error('❌ Error Name:', err.name);
     } else {
       console.error(err);
     }
 
     // Rollback nếu lỗi
     if (transaction) {
-      await transaction.rollback();
+      try {
+        await transaction.rollback();
+      } catch (rollbackErr) {
+        console.error('Lỗi khi rollback:', rollbackErr);
+      }
     }
 
-    res.status(500).send({ message: 'Lỗi server khi lưu dữ liệu cân.' });
+    // Trả về message lỗi chi tiết hơn cho client
+    const errorMessage = err instanceof Error ? err.message : 'Lỗi server khi lưu dữ liệu cân.';
+    res.status(500).send({ message: errorMessage });
   }
 };
 
@@ -254,7 +280,7 @@ export const reweighNhap = async (req: Request, res: Response) => {
       .input('maCodeParam', sql.VarChar(20), maCode)
       .input('loaiGocParam', sql.VarChar(10), loaiGoc)
       .query(`
-        SELECT 1 AS Exists
+        SELECT 1 AS RecordExists
         FROM Outsole_VML_History
         WHERE QRCode = @maCodeParam AND loai = @loaiGocParam
       `);
@@ -267,32 +293,92 @@ export const reweighNhap = async (req: Request, res: Response) => {
     transaction = pool.transaction();
     await transaction.begin();
 
-    // Cập nhật các bản ghi cũ với loại tương ứng thành 'modified'
-    const updateHistoryRequest = new sql.Request(transaction);
-    const updateResult = await updateHistoryRequest
-      .input('maCodeParam', sql.VarChar(20), maCode)
-      .input('loaiGocParam', sql.VarChar(10), loaiGoc)
-      .query(`
-        UPDATE Outsole_VML_History 
-        SET loai = 'modified'
-        WHERE QRCode = @maCodeParam AND loai = @loaiGocParam
-      `);
-    
-    console.log(`✏️ Đã cập nhật ${updateResult.rowsAffected[0]} bản ghi '${loaiGoc}' thành 'modified' cho mã ${maCode}`);
+    if (loai === 'nhapLai') {
+      // === LOGIC CÂN NHẬP LẠI ===
+      // Cập nhật TẤT CẢ bản ghi 'nhap' thành 'modified' và set CurrentQty = 0
+      const updateHistoryRequest = new sql.Request(transaction);
+      const updateResult = await updateHistoryRequest
+        .input('maCodeParam', sql.VarChar(20), maCode)
+        .query(`
+          UPDATE Outsole_VML_History 
+          SET loai = 'modified', CurrentQty = 0
+          WHERE QRCode = @maCodeParam AND loai = 'nhap'
+        `);
+      
+      console.log(`✏️ [NHẬP LẠI] Đã cập nhật ${updateResult.rowsAffected[0]} bản ghi 'nhap' thành 'modified' và set CurrentQty = 0`);
 
-    // Cập nhật Outsole_VML_WorkS với khối lượng mới
-    const updateWorkSRequest = new sql.Request(transaction);
-    await updateWorkSRequest
-      .input('maCodeParam', sql.VarChar(20), maCode)
-      .input('mixTimeParam', sql.SmallDateTime, mixTime)
-      .input('khoiLuongCanParam', sql.Money, khoiLuongCan)
-      .query(`
-        UPDATE Outsole_VML_WorkS 
-        SET MixTime = @mixTimeParam, RKQty = @khoiLuongCanParam
-        WHERE QRCode = @maCodeParam
-      `);
+      // Reset WorkS.CurrentQty = 0 trước để trigger tính đúng
+      const updateWorkSRequest = new sql.Request(transaction);
+      await updateWorkSRequest
+        .input('maCodeParam', sql.VarChar(20), maCode)
+        .input('mixTimeParam', sql.SmallDateTime, mixTime)
+        .input('khoiLuongCanParam', sql.Money, khoiLuongCan)
+        .query(`
+          UPDATE Outsole_VML_WorkS 
+          SET MixTime = @mixTimeParam, RKQty = @khoiLuongCanParam, CurrentQty = 0
+          WHERE QRCode = @maCodeParam
+        `);
+      
+      console.log(`🔄 [NHẬP LẠI] Đã reset WorkS.CurrentQty = 0 cho mã ${maCode}`);
+      console.log(`📊 [NHẬP LẠI] Trigger sẽ tự động tính CurrentQty = 0 + ${khoiLuongCan} = ${khoiLuongCan}`);
+      
+    } else if (loai === 'xuatLai') {
+      // === LOGIC CÂN XUẤT LẠI ===
+      // Tìm bản ghi 'xuat' GẦN NHẤT
+      const findLastXuatRequest = new sql.Request(transaction);
+      const lastXuatResult = await findLastXuatRequest
+        .input('maCodeParam', sql.VarChar(20), maCode)
+        .query(`
+          SELECT TOP 1 HistoryID, KhoiLuongCan 
+          FROM Outsole_VML_History 
+          WHERE QRCode = @maCodeParam AND loai = 'xuat'
+          ORDER BY HistoryID DESC
+        `);
+      
+      if (lastXuatResult.recordset.length === 0) {
+        await transaction.rollback();
+        return res.status(400).send({ message: 'Không tìm thấy bản ghi xuất để cân lại.' });
+      }
+      
+      const lastXuat = lastXuatResult.recordset[0];
+      const oldKhoiLuongXuat = parseFloat(lastXuat.KhoiLuongCan);
+      
+      console.log(`🔍 [XUẤT LẠI] Tìm thấy bản ghi xuất gần nhất: HistoryID=${lastXuat.HistoryID}, KhoiLuong=${oldKhoiLuongXuat}kg`);
 
-    // INSERT bản ghi mới vào History với loại tương ứng
+      // Update bản ghi xuất gần nhất thành 'xModified' và set CurrentQty = 0
+      const updateXuatRequest = new sql.Request(transaction);
+      await updateXuatRequest
+        .input('historyIDParam', sql.Int, lastXuat.HistoryID)
+        .query(`
+          UPDATE Outsole_VML_History 
+          SET loai = 'xModified', CurrentQty = 0
+          WHERE HistoryID = @historyIDParam
+        `);
+      
+      console.log(`✏️ [XUẤT LẠI] Đã update bản ghi xuất thành 'xModified' và set CurrentQty = 0`);
+
+      // Cộng lại số lượng xuất cũ vào WorkS.CurrentQty (khôi phục trạng thái trước khi xuất)
+      // Sau đó trigger sẽ tự động trừ số lượng xuất mới
+      const updateWorkSRequest = new sql.Request(transaction);
+      await updateWorkSRequest
+        .input('maCodeParam', sql.VarChar(20), maCode)
+        .input('mixTimeParam', sql.SmallDateTime, mixTime)
+        .input('khoiLuongCanParam', sql.Money, khoiLuongCan)
+        .input('oldKhoiLuongXuatParam', sql.Money, oldKhoiLuongXuat)
+        .query(`
+          UPDATE Outsole_VML_WorkS 
+          SET MixTime = @mixTimeParam, 
+              RKQty = @khoiLuongCanParam,
+              CurrentQty = CurrentQty + @oldKhoiLuongXuatParam
+          WHERE QRCode = @maCodeParam
+        `);
+      
+      console.log(`🔄 [XUẤT LẠI] Đã cộng lại ${oldKhoiLuongXuat}kg vào WorkS.CurrentQty`);
+      console.log(`📊 [XUẤT LẠI] Trigger sẽ tự động trừ ${khoiLuongCan}kg từ WorkS.CurrentQty`);
+    }
+
+    // INSERT bản ghi mới vào History (CurrentQty sẽ được trigger tự động tính)
+    // Trigger sẽ: WorkS.CurrentQty (0) + KhoiLuongCan → CurrentQty chính xác
     const insertHistoryRequest = new sql.Request(transaction);
     await insertHistoryRequest
       .input('maCodeParam', sql.VarChar(20), maCode)
@@ -305,6 +391,8 @@ export const reweighNhap = async (req: Request, res: Response) => {
         INSERT INTO Outsole_VML_History (QRCode, TimeWeigh, KhoiLuongCan, loai, WUserID, Device)
         VALUES (@maCodeParam, @timeWeighParam, @khoiLuongCanParam, @loaiMoiParam, @wUserIDParam, @deviceParam)
       `);
+    
+    console.log(`✅ [REWEIGH] Đã INSERT bản ghi mới. Trigger đã tự động cập nhật CurrentQty.`);
 
     // Commit
     await transaction.commit();
