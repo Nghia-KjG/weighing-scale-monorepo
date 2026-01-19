@@ -1,6 +1,6 @@
 // src/api/routes/syncRoutes.ts
 import express from 'express';
-import { getUnweighedSummary, getUnweighedDetails } from '../controllers/unweighedController';
+import { getUnweighedSummary, getUnweighedDetails } from '../../controllers/weighStation/unweighedController';
 
 const router = express.Router();
 

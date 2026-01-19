@@ -4,7 +4,7 @@ import {
   getInventorySummary, 
   getShiftWeighing, 
   getWeighingTrend 
-} from '../controllers/dashboardController';
+} from '../../controllers/weighStation/dashboardController';
 
 const router = express.Router();
 

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // apps/backend/src/api/controllers/dashboardController.ts
 import { Request, Response } from 'express';
-import { getPool } from '../../config/db';
+import { getPool } from '../../../config/db';
 import sql from 'mssql';
 
 /**

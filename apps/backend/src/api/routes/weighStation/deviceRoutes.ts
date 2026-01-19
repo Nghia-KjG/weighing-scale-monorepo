@@ -1,5 +1,5 @@
 import express from 'express';
-import { getDevicesData, createDevice, updateDevice, deleteDevice } from '../controllers/deviceController';
+import { getDevicesData, createDevice, updateDevice, deleteDevice } from '../../controllers/weighStation/deviceController';
 
 const router = express.Router();
 

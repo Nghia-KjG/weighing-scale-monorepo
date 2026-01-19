@@ -1,6 +1,6 @@
 // src/api/routes/weighingRoutes.ts
 import express from 'express';
-import { completeWeighing, reweighNhap } from '../controllers/weighingController';
+import { completeWeighing, reweighNhap } from '../../controllers/weighStation/weighingController';
 
 const router = express.Router();
 

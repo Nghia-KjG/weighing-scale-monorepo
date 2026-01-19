@@ -1,7 +1,7 @@
 // src/api/controllers/scanController.ts
 import { Request, Response } from 'express';
 import sql from 'mssql';
-import { getPool } from '../../config/db';
+import { getPool } from '../../../config/db';
 
 export const getScanData = async (req: Request, res: Response) => {
   const maCode = req.params.maCode;

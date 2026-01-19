@@ -1,7 +1,7 @@
 // src/api/controllers/weighingController.ts
 import { Request, Response } from 'express';
 import sql from 'mssql';
-import { getPool } from '../../config/db';
+import { getPool } from '../../../config/db';
 
 export const completeWeighing = async (req: Request, res: Response) => {
   console.log(`📦 [POST /api/complete] Yêu cầu từ IP: ${req.ip} | Dữ liệu nhận được:`, req.body);

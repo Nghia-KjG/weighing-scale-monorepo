@@ -1,6 +1,6 @@
 // src/api/routes/historyRoutes.ts
 import express from 'express';
-import { getHistory } from '../controllers/historyController';
+import { getHistory } from '../../controllers/weighStation/historyController';
 
 const router = express.Router();
 

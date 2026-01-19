@@ -5,15 +5,15 @@ import cors from 'cors';
 import morgan, { } from 'morgan';
 import { connectDb, closeDb } from './config/db';
 // Import các routes
-import scanRoutes from './api/routes/scanRoutes';
-import weighingRoutes from './api/routes/weighingRoutes';
-import historyRoutes from './api/routes/historyRoutes';
-import authRoutes from './api/routes/authRoutes';
-import syncRoutes from './api/routes/syncRoutes';
-import pingRoutes from './api/routes/pingRoutes';
-import dashboardRoutes from './api/routes/dashboardRoutes';
-import unweighedRoutes from './api/routes/unweighedRoutes';
-import deviceRoutes from './api/routes/deviceRoutes';
+import scanRoutes from './api/routes/weighStation/scanRoutes';
+import weighingRoutes from './api/routes/weighStation/weighingRoutes';
+import historyRoutes from './api/routes/weighStation/historyRoutes';
+import authRoutes from './api/routes/weighStation/authRoutes';
+import syncRoutes from './api/routes/weighStation/syncRoutes';
+import pingRoutes from './api/routes/weighStation/pingRoutes';
+import dashboardRoutes from './api/routes/weighStation/dashboardRoutes';
+import unweighedRoutes from './api/routes/weighStation/unweighedRoutes';
+import deviceRoutes from './api/routes/weighStation/deviceRoutes';
 
 
 async function startServer() {

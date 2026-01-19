@@ -1,5 +1,5 @@
 import express from 'express';
-import { ping } from '../controllers/pingController';
+import { ping } from '../../controllers/weighStation/pingController';
 
 const router = express.Router();
 

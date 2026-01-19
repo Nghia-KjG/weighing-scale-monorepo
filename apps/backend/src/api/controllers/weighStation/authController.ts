@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import sql from 'mssql';
-import { getPool } from '../../config/db';
+import { getPool } from '../../../config/db';
 
 export const login = async (req: Request, res: Response) => {
   // 1. Lấy mUserID (Số thẻ) từ body

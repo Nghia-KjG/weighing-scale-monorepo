@@ -1,5 +1,5 @@
 import express from 'express';
-import { login, checkRole } from '../controllers/authController';
+import { login, checkRole } from '../../controllers/weighStation/authController';
 
 const router = express.Router();
 

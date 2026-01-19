@@ -1,6 +1,6 @@
 // src/api/routes/scanRoutes.ts
 import express from 'express';
-import { getScanData } from '../controllers/scanController';
+import { getScanData } from '../../controllers/weighStation/scanController';
 
 const router = express.Router();
 

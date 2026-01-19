@@ -1,6 +1,6 @@
 // apps/backend/src/api/controllers/unweighedController.ts
 import { Request, Response } from 'express';
-import { getPool } from '../../config/db';
+import { getPool } from '../../../config/db';
 import sql from 'mssql';
 
 /**

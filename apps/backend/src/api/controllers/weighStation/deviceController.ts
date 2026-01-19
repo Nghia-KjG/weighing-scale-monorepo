@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getPool } from '../../config/db';
+import { getPool } from '../../../config/db';
 
 /**
  * API: GET /api/sync/devices

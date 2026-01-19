@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/api/controllers/historyController.ts
 import { Request, Response } from 'express';
-import { getPool } from '../../config/db';
+import { getPool } from '../../../config/db';
 import sql from 'mssql';
 
 export const getHistory = async (req: Request, res: Response) => {
