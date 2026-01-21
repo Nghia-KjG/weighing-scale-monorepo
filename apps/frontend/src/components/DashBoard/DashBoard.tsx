@@ -79,7 +79,7 @@ function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-100 text-sm font-medium">Tổng Nhập</p>
-                <p className="text-3xl font-bold mt-2">{inventorySummary.summary.totalNhap.toFixed(3)} Kg</p>
+                <p className="text-3xl font-bold mt-2">{inventorySummary.summary.totalNhap.toFixed(2)} Kg</p>
               </div>
               <div className="bg-white bg-opacity-20 p-3 rounded-lg">
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -93,7 +93,7 @@ function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-green-100 text-sm font-medium">Tồn Kho</p>
-                <p className="text-3xl font-bold mt-2">{inventorySummary.summary.totalTon.toFixed(3)} Kg</p>
+                <p className="text-3xl font-bold mt-2">{inventorySummary.summary.totalTon.toFixed(2)} Kg</p>
               </div>
               <div className="bg-white bg-opacity-20 p-3 rounded-lg">
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,7 +107,7 @@ function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-red-100 text-sm font-medium">Đã Xuất</p>
-                <p className="text-3xl font-bold mt-2">{inventorySummary.summary.totalXuat.toFixed(3)} Kg</p>
+                <p className="text-3xl font-bold mt-2">{inventorySummary.summary.totalXuat.toFixed(2)} Kg</p>
               </div>
               <div className="bg-white bg-opacity-20 p-3 rounded-lg">
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -168,7 +168,7 @@ function DashboardPage() {
             <>
               <ResponsiveContainer width="100%" height={400}>
                 <PieChart>
-                  {/* Vòng trong - Tổng quan */}
+                  {/* Vòng trong - Tổng quan 
                   <Pie
                     data={twoLevelPieData.innerData}
                     cx="50%"
@@ -180,7 +180,7 @@ function DashboardPage() {
                     {twoLevelPieData.innerData.map((entry, index) => (
                       <Cell key={`inner-${index}`} fill={entry.fill} />
                     ))}
-                  </Pie>
+                  </Pie> */}
                   
                   {/* Vòng ngoài - Chi tiết theo loại */}
                   <Pie
@@ -212,23 +212,24 @@ function DashboardPage() {
                 <div className="flex items-start gap-2"> {/* Sửa gap-6 thành gap-2 */}
                   <div className="w-4 h-4 rounded-full bg-green-500 mt-0.5 flex-shrink-0" style={{backgroundColor: '#10b981'}}></div>
                   <p className="text-sm font-semibold text-gray-600">
-                  Tồn: {inventorySummary?.summary.totalTon.toFixed(3)}kg (
+                  Tổng Tồn: {inventorySummary?.summary.totalTon.toFixed(2)}kg (
                                 {/* Dùng hàm tính an toàn */}
                   {safePercent(inventorySummary?.summary.totalTon, totalOverview)}
                   %)
                   </p>
                 </div>
 
-                {/* Nhóm 2: Đã xuất */}
+                {/* Nhóm 2: Đã xuất 
                 <div className="flex items-start gap-2">
                     <div className="w-4 h-4 rounded-full bg-red-500 mt-0.5 flex-shrink-0" style={{backgroundColor: '#ef4444'}}></div>
                   <p className="text-sm font-semibold text-gray-600">
-                  Đã xuất: {inventorySummary?.summary.totalXuat.toFixed(3)}kg (
-                                {/* Dùng hàm tính an toàn */}
+                  Đã xuất: {inventorySummary?.summary.totalXuat.toFixed(2)}kg (
+                                {/* Dùng hàm tính an toàn 
                   {safePercent(inventorySummary?.summary.totalXuat, totalOverview)}
                   %)
                   </p>
                 </div>
+                */}
               </div>
             </div>
             </>

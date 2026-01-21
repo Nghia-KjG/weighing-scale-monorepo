@@ -359,17 +359,14 @@ export const reweighNhap = async (req: Request, res: Response) => {
 
       // Cộng lại số lượng xuất cũ vào WorkS.CurrentQty (khôi phục trạng thái trước khi xuất)
       // Sau đó trigger sẽ tự động trừ số lượng xuất mới
+      // Không update RKQty và MixTime vì chỉ cập nhật khi nhập
       const updateWorkSRequest = new sql.Request(transaction);
       await updateWorkSRequest
         .input('maCodeParam', sql.VarChar(20), maCode)
-        .input('mixTimeParam', sql.SmallDateTime, mixTime)
-        .input('khoiLuongCanParam', sql.Money, khoiLuongCan)
         .input('oldKhoiLuongXuatParam', sql.Money, oldKhoiLuongXuat)
         .query(`
           UPDATE Outsole_VML_WorkS 
-          SET MixTime = @mixTimeParam, 
-              RKQty = @khoiLuongCanParam,
-              CurrentQty = CurrentQty + @oldKhoiLuongXuatParam
+          SET CurrentQty = CurrentQty + @oldKhoiLuongXuatParam
           WHERE QRCode = @maCodeParam
         `);
       
