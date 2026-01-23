@@ -14,6 +14,7 @@ import pingRoutes from './api/routes/weighStation/pingRoutes';
 import dashboardRoutes from './api/routes/weighStation/dashboardRoutes';
 import unweighedRoutes from './api/routes/weighStation/unweighedRoutes';
 import deviceRoutes from './api/routes/weighStation/deviceRoutes';
+import appUpdateRoutes from './api/routes/weighStation/appUpdateRoutes';
 
 
 async function startServer() {
@@ -60,6 +61,7 @@ async function startServer() {
   app.use('/api', dashboardRoutes);
   app.use('/api', unweighedRoutes);
   app.use('/api', deviceRoutes);
+  app.use('/api', appUpdateRoutes);
 
   // Basic root route (optional)
   app.get('/', (req, res) => {
