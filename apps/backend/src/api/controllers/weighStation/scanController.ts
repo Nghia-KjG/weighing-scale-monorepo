@@ -113,6 +113,7 @@ export const getScanData = async (req: Request, res: Response) => {
           S.MUserID,
           S.Qty AS QtyS,
           S.MixTime,
+          S.isEmpty,
           ISNULL(SUM(CASE WHEN H.loai = 'nhap' THEN H.KhoiLuongCan ELSE 0 END), 0) AS weighedNhapAmount,
           ISNULL(SUM(CASE WHEN H.loai = 'xuat' THEN H.KhoiLuongCan ELSE 0 END), 0) AS weighedXuatAmount
         FROM 
@@ -122,7 +123,7 @@ export const getScanData = async (req: Request, res: Response) => {
         WHERE 
           S.OVNO = @ovNOParam
         GROUP BY 
-          S.QRCode, S.Package, S.MUserID, S.Qty, S.MixTime
+          S.QRCode, S.Package, S.MUserID, S.Qty, S.MixTime, S.isEmpty
         ORDER BY 
           S.Package
       `);
@@ -134,6 +135,7 @@ export const getScanData = async (req: Request, res: Response) => {
       MUserID: string;
       QtyS: number;
       MixTime: string;
+      isEmpty: number;
       weighedNhapAmount: number;
       weighedXuatAmount: number;
     }
@@ -144,6 +146,7 @@ export const getScanData = async (req: Request, res: Response) => {
       mUserID: record.MUserID,
       qtys: record.QtyS,
       mixTime: record.MixTime,
+      isEmpty: record.isEmpty || 0,
       weighedNhapAmount: record.weighedNhapAmount || 0,
       weighedXuatAmount: record.weighedXuatAmount || 0,
       isNhapWeighed: (record.weighedNhapAmount || 0) > 0,
@@ -156,6 +159,7 @@ export const getScanData = async (req: Request, res: Response) => {
     const isXuatWeighed = scannedCodeInfo?.isXuatWeighed || false;
     const weighedNhapAmount = scannedCodeInfo?.weighedNhapAmount || 0;
     const weighedXuatAmount = scannedCodeInfo?.weighedXuatAmount || 0;
+    const isEmpty = scannedCodeInfo?.isEmpty || 0;
 
     // Combine results
     const responseData = {
@@ -165,6 +169,7 @@ export const getScanData = async (req: Request, res: Response) => {
       isXuatWeighed: isXuatWeighed,
       weighedNhapAmount: weighedNhapAmount,
       weighedXuatAmount: weighedXuatAmount,
+      isEmpty: isEmpty,
       
       // Thông tin chung cho OVNO
       ovNO: ovNO,

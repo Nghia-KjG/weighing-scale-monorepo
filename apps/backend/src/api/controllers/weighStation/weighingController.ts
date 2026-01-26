@@ -132,17 +132,21 @@ export const completeWeighing = async (req: Request, res: Response) => {
     transaction = pool.transaction();
     await transaction.begin();
 
-    // 5. CẬP NHẬT Outsole_VML_WorkS (Giữ nguyên)
-    const updateWorkSRequest = new sql.Request(transaction);
-    await updateWorkSRequest
-      .input('maCodeParam', sql.VarChar(20), maCode)
-      .input('mixTimeParam', sql.SmallDateTime, mixTime)
-      .input('khoiLuongCanParam', sql.Money, khoiLuongCan)
-      .query(`
-        UPDATE Outsole_VML_WorkS 
-        SET MixTime = @mixTimeParam, RKQty = @khoiLuongCanParam
-        WHERE QRCode = @maCodeParam
-      `);
+    // 5. CẬP NHẬT Outsole_VML_WorkS (CHỈ khi cân NHẬP)
+    if (loai === 'nhap') {
+      const updateWorkSRequest = new sql.Request(transaction);
+      await updateWorkSRequest
+        .input('maCodeParam', sql.VarChar(20), maCode)
+        .input('mixTimeParam', sql.SmallDateTime, mixTime)
+        .input('khoiLuongCanParam', sql.Money, khoiLuongCan)
+        .query(`
+          UPDATE Outsole_VML_WorkS 
+          SET MixTime = @mixTimeParam, RKQty = @khoiLuongCanParam
+          WHERE QRCode = @maCodeParam
+        `);
+      
+      console.log(`✅ [NHẬP] Đã cập nhật MixTime và RKQty trong WorkS`);
+    }
     
     // Kiểm tra CurrentQty hiện tại trong WorkS (để log debug)
     const checkWorkSRequest = new sql.Request(transaction);
@@ -439,5 +443,197 @@ export const reweighNhap = async (req: Request, res: Response) => {
     }
 
     res.status(500).send({ message: 'Lỗi server khi cân lại.' });
+  }
+};
+
+export const completeExportAll = async (req: Request, res: Response) => {
+  console.log(`📦 [POST /api/complete-export-all] Xuất hết từ IP: ${req.ip} | Dữ liệu:`, req.body);
+  console.log('🔍 Device value:', req.body.device, 'Type:', typeof req.body.device);
+  
+  const { maCode, khoiLuongCan, thoiGianCan, WUserID, device } = req.body;
+  const mixTime = new Date(thoiGianCan);
+
+  // Kiểm tra dữ liệu đầu vào
+  if (!maCode || khoiLuongCan == null || !thoiGianCan || !WUserID) {
+    return res.status(400).send({ message: 'Thiếu dữ liệu (maCode, khoiLuongCan, thoiGianCan, WUserID).' });
+  }
+  
+  const deviceValue = device || null;
+
+  let pool: sql.ConnectionPool | undefined;
+  let transaction: sql.Transaction | undefined;
+  let ovNO: string;
+
+  try {
+    pool = getPool();
+
+    // Kiểm tra mã code có tồn tại không
+    const preCheckRequest = pool.request();
+    const preCheckResult = await preCheckRequest
+      .input('maCodeParam', sql.VarChar(20), maCode)
+      .query('SELECT RKQty, MixTime, OVNO, CurrentQty FROM Outsole_VML_WorkS WHERE QRCode = @maCodeParam');
+
+    if (preCheckResult.recordset.length === 0) {
+      return res.status(404).send({ message: 'Lỗi: Không tìm thấy Mã Code.' });
+    }
+    
+    const currentData = preCheckResult.recordset[0];
+    ovNO = currentData.OVNO;
+
+    // Kiểm tra xem đã có bản ghi 'nhap' cho chính maCode này trong History chưa
+    const nhapCheck = await pool.request()
+      .input('maCodeParam', sql.VarChar(20), maCode)
+      .query(`
+        SELECT 1 AS NhapExists
+        FROM Outsole_VML_History
+        WHERE QRCode = @maCodeParam AND loai = 'nhap'
+      `);
+
+    if (nhapCheck.recordset.length === 0) {
+      return res.status(406).send({ 
+        message: `Lỗi: Mã QRCode này chưa được cân nhập!` 
+      });
+    }
+    
+    // Lấy khối lượng Nhập và tổng Xuất HIỆN TẠI của chính mã này
+    const balanceCheck = await pool.request()
+      .input('maCodeParam', sql.VarChar(20), maCode)
+      .query(`
+        SELECT 
+          ISNULL(SUM(CASE WHEN loai = 'nhap' THEN KhoiLuongCan ELSE 0 END), 0) AS TotalNhap,
+          ISNULL(SUM(CASE WHEN loai = 'xuat' THEN KhoiLuongCan ELSE 0 END), 0) AS TotalXuat
+        FROM Outsole_VML_History
+        WHERE QRCode = @maCodeParam
+      `);
+    
+    const { TotalNhap, TotalXuat } = balanceCheck.recordset[0];
+    const currentWeighAmount = parseFloat(khoiLuongCan); 
+    const totalAfterWeighing = TotalXuat + currentWeighAmount;
+    const remainingStock = TotalNhap - TotalXuat;
+
+    // Kiểm tra khối lượng xuất có vượt quá không
+    if (totalAfterWeighing > (TotalNhap + 0.001)) {
+      return res.status(406).send({ 
+        message: `Lỗi: Khối lượng xuất vượt quá khối lượng đã nhập! (Còn lại: ${remainingStock.toFixed(3)}kg / Muốn xuất: ${khoiLuongCan}kg / Đã nhập: ${TotalNhap}kg)` 
+      });
+    }
+
+    // Tính số lượng hao hụt
+    const lossQty = remainingStock - currentWeighAmount;
+    
+    console.log(`📊 [XUẤT HẾT] Mã ${maCode}: Còn lại = ${remainingStock}kg, Xuất = ${khoiLuongCan}kg, Hao hụt = ${lossQty}kg`);
+
+    // Bắt đầu Transaction
+    transaction = pool.transaction();
+    await transaction.begin();
+
+    // 1. INSERT lần cân xuất vào History với loại 'xuat'
+    const insertExportRequest = new sql.Request(transaction);
+    await insertExportRequest
+      .input('maCodeParam', sql.VarChar(20), maCode)
+      .input('timeWeighParam', sql.SmallDateTime, mixTime)
+      .input('khoiLuongCanParam', sql.Money, khoiLuongCan)
+      .input('loaiParam', sql.VarChar(10), 'xuat')
+      .input('wUserIDParam', sql.VarChar(50), WUserID)
+      .input('deviceParam', sql.NVarChar(100), deviceValue)
+      .query(`
+        INSERT INTO Outsole_VML_History (QRCode, TimeWeigh, KhoiLuongCan, loai, WUserID, Device)
+        VALUES (@maCodeParam, @timeWeighParam, @khoiLuongCanParam, @loaiParam, @wUserIDParam, @deviceParam)
+      `);
+    
+    console.log(`✅ [XUẤT HẾT] Đã INSERT lần xuất vào History với KL = ${khoiLuongCan}kg`);
+
+    // 2. Nếu có hao hụt, tạo thêm 1 bản ghi với loại 'hao'
+    if (lossQty > 0.001) {
+      const insertLossRequest = new sql.Request(transaction);
+      await insertLossRequest
+        .input('maCodeParam', sql.VarChar(20), maCode)
+        .input('timeWeighParam', sql.SmallDateTime, mixTime)
+        .input('khoiLuongCanParam', sql.Money, lossQty)
+        .input('loaiParam', sql.VarChar(10), 'hao')
+        .input('wUserIDParam', sql.VarChar(50), WUserID)
+        .input('deviceParam', sql.NVarChar(100), deviceValue)
+        .query(`
+          INSERT INTO Outsole_VML_History (QRCode, TimeWeigh, KhoiLuongCan, loai, WUserID, Device)
+          VALUES (@maCodeParam, @timeWeighParam, @khoiLuongCanParam, @loaiParam, @wUserIDParam, @deviceParam)
+        `);
+      
+      console.log(`✅ [XUẤT HẾT] Đã INSERT lần hao hụt vào History với KL = ${lossQty}kg`);
+    }
+
+    // 3. Cập nhật isEmpty = 1, LossQty, và ClosedDate trong Outsole_VML_WorkS
+    const updateClosedRequest = new sql.Request(transaction);
+    await updateClosedRequest
+      .input('maCodeParam', sql.VarChar(20), maCode)
+      .input('lossQtyParam', sql.Money, lossQty)
+      .input('closedDateParam', sql.SmallDateTime, mixTime)
+      .query(`
+        UPDATE Outsole_VML_WorkS 
+        SET isEmpty = 1, LossQty = @lossQtyParam, ClosedDate = @closedDateParam
+        WHERE QRCode = @maCodeParam
+      `);
+    
+    console.log(`✅ [XUẤT HẾT] Đã cập nhật isEmpty = 1, LossQty = ${lossQty}kg, ClosedDate cho mã ${maCode}`);
+
+    // Commit transaction
+    await transaction.commit();
+    
+    // Lấy dữ liệu tóm tắt mới sau khi commit
+    const workPromise = pool.request()
+      .input('ovNOParam', sql.NVarChar, ovNO)
+      .query('SELECT Qty AS TotalTargetQty, Memo FROM Outsole_VML_Work WHERE OVNO = @ovNOParam');
+    
+    const historySummaryPromise = pool.request()
+      .input('ovNOParam', sql.NVarChar, ovNO)
+      .query(`
+        SELECT 
+          ISNULL(SUM(CASE WHEN H.loai = 'nhap' THEN H.KhoiLuongCan ELSE 0 END), 0) AS TotalNhapWeighed,
+          ISNULL(SUM(CASE WHEN H.loai = 'xuat' THEN H.KhoiLuongCan ELSE 0 END), 0) AS TotalXuatWeighed,
+          ISNULL(SUM(CASE WHEN H.loai = 'hao' THEN H.KhoiLuongCan ELSE 0 END), 0) AS TotalHaoWeighed
+        FROM Outsole_VML_History AS H
+        INNER JOIN Outsole_VML_WorkS AS S ON H.QRCode = S.QRCode
+        WHERE S.OVNO = @ovNOParam
+      `);
+      
+    const [workResult, historySummaryResult] = await Promise.all([workPromise, historySummaryPromise]);
+
+    const workRecord = workResult.recordset[0] || {};
+    const historySummary = historySummaryResult.recordset[0] || {};
+    
+    // Trả về kết quả
+    res.status(201).send({ 
+      message: `Đã xuất hết thành công. Xuất: ${khoiLuongCan}kg, Hao hụt: ${lossQty.toFixed(3)}kg`,
+      summaryData: {
+        totalTargetQty: workRecord.TotalTargetQty || 0.0,
+        totalNhapWeighed: historySummary.TotalNhapWeighed || 0.0,
+        totalXuatWeighed: historySummary.TotalXuatWeighed || 0.0,
+        totalHaoWeighed: historySummary.TotalHaoWeighed || 0.0,
+        memo: workRecord.Memo,
+        exportedQty: khoiLuongCan,
+        lossQty: lossQty,
+      }
+    });
+
+  } catch (err: unknown) {
+    console.error('❌ Lỗi Transaction khi xuất hết:');
+
+    if (err instanceof Error) {
+      console.error('❌ Error Message:', err.message);
+      console.error('❌ Error Name:', err.name);
+    } else {
+      console.error(err);
+    }
+
+    // Rollback nếu lỗi
+    if (transaction) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackErr) {
+        console.error('Lỗi khi rollback:', rollbackErr);
+      }
+    }
+
+    const errorMessage = err instanceof Error ? err.message : 'Lỗi server khi xuất hết.';
+    res.status(500).send({ message: errorMessage });
   }
 };
