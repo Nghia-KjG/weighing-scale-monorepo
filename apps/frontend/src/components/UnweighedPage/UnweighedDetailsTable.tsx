@@ -23,6 +23,26 @@ const UnweighedDetailsTable: React.FC<TableProps> = ({ data }) => {
     'da xuat het': {
       text: 'Đã Xuất Hết',
       className: 'text-green-600',
+    },
+    'khong xac dinh': {
+      text: 'Không Xác Định',
+      className: 'text-gray-500',
+    }
+  };
+
+  // Format thời gian
+  const formatTime = (time: string | null) => {
+    if (!time) return '-';
+    try {
+      return new Date(time).toLocaleString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return time;
     }
   };
 
@@ -36,16 +56,19 @@ const UnweighedDetailsTable: React.FC<TableProps> = ({ data }) => {
               Mã Code
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Số Lô
+              Số Mẻ
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               KL Mẻ (kg)
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              KL Đã Xuất (kg)
+              KL Đã Nhập (kg)
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               KL Còn Lại (kg)
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Thời Gian Nhập
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Trạng Thái
@@ -63,21 +86,23 @@ const UnweighedDetailsTable: React.FC<TableProps> = ({ data }) => {
                   {item.maCode}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  {item.soLo}
+                  {item.soMe}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                   {item.khoiLuongMe.toFixed(3)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  {item.khoiLuongDaXuat.toFixed(3)}
+                  {item.khoiLuongDaNhap.toFixed(3)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                   {item.khoiLuongConLai.toFixed(3)}
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  {formatTime(item.thoiGianCanNhap)}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  {/* 3. Áp dụng text và className */}
                   <span className={`font-medium ${display.className}`}>
-                  {display.text}
+                    {display.text}
                   </span>
                 </td>
               </tr>

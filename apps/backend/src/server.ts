@@ -15,6 +15,7 @@ import dashboardRoutes from './api/routes/weighStation/dashboardRoutes';
 import unweighedRoutes from './api/routes/weighStation/unweighedRoutes';
 import deviceRoutes from './api/routes/weighStation/deviceRoutes';
 import appUpdateRoutes from './api/routes/weighStation/appUpdateRoutes';
+import warehouseRoutes from './api/routes/weighStation/warehouseRoutes';
 
 
 async function startServer() {
@@ -62,6 +63,7 @@ async function startServer() {
   app.use('/api', unweighedRoutes);
   app.use('/api', deviceRoutes);
   app.use('/api', appUpdateRoutes);
+  app.use('/api', warehouseRoutes); // Gắn route api warehouse
 
   // Basic root route (optional)
   app.get('/', (req, res) => {

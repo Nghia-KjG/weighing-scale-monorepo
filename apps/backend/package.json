@@ -2,6 +2,10 @@
   "name": "weighing_station_backend",
   "version": "1.0.0",
   "main": "index.js",
+  "engines": {
+    "node": ">=18.16.1",
+    "npm": ">=9.5.1"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",

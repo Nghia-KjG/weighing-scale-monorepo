@@ -18,10 +18,12 @@ export interface UnweighedSummary {
 export interface UnweighedDetail {
   maCode: string;
   khoiLuongMe: number;
-  soLo: number;
-  khoiLuongDaXuat: number;
-  khoiLuongConLai: number;
-  trangThai: 'chua nhap' | 'chua xuat het' | 'da xuat het';
+  soMe: number;
+  khoiLuongDaNhap: number;      // Mới: RKQty từ WorkS
+  khoiLuongConLai: number;       // CurrentQty từ WorkS
+  thoiGianCanNhap: string | null; // Mới: MixTime từ WorkS
+  trangThai: 'chua nhap' | 'chua xuat het' | 'da xuat het' | 'khong xac dinh';
+  trangThaiCode: number;         // Mới: isEmpty từ WorkS (-1, 0, 1)
 }
 
 export function useUnweighedPage() {

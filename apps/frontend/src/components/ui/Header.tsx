@@ -33,7 +33,7 @@ function Header() {
 
   return (
     <header className="fixed top-0 left-0 w-full h-[70px] bg-[#064469] z-50 flex items-center justify-between px-6 shadow-lg">
-      <Link to="/WeighingStationNew" className="flex items-center gap-4">
+      <Link to="dashboard" className="flex items-center gap-4">
         <img src={logoIcon} alt="Logo" className="h-[35px]" />
         <h1 className="text-white text-2xl font-bold tracking-wide">LƯU TRÌNH CÂN CAO SU XƯỞNG ĐẾ</h1>
       </Link>
@@ -42,11 +42,6 @@ function Header() {
         <div className="flex items-center gap-6">
           {/* 1. KHU VỰC NAV CHO DESKTOP: Ẩn trên mobile */}
           <nav className="hidden md:flex items-center gap-1 relative">
-            {/*<NavLink to="/WeighingStationNew" title="Trạm Cân">
-              <span className="relative z-10">
-                <img src={homeIcon} alt="Trang chủ" className="h-6 w-6 " />
-              </span>
-            </NavLink>*/}
             {user.role === 'admin' && (
               <>
                 <NavLink to="/dashboard" title="Dashboard">
@@ -80,10 +75,6 @@ function Header() {
                 
                 {/* 2. CÁC LINK NAV CHO MOBILE: Chỉ hiện trên mobile */}
                 <div className="md:hidden">
-                  {/*<Link to="/WeighingStationNew" className={dropdownLinkClasses} onClick={toggleMenu}>
-                    <img src={homeIcon} alt="Trang chủ" className="h-5 w-5 filters invert" />
-                    Trạm Cân
-                  </Link>*/}
                   {user.role === 'admin' && (
                     <>
                       <Link to="/history" className={dropdownLinkClasses} onClick={toggleMenu}>
